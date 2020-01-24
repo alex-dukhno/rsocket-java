@@ -25,6 +25,7 @@ import static org.mockito.Mockito.verify;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
+import io.netty.util.CharsetUtil;
 import io.rsocket.exceptions.ApplicationErrorException;
 import io.rsocket.exceptions.RejectedSetupException;
 import io.rsocket.frame.*;
@@ -35,6 +36,7 @@ import io.rsocket.util.EmptyPayload;
 import io.rsocket.util.MultiSubscriberRSocket;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.assertj.core.api.Assertions;
@@ -212,6 +214,43 @@ public class RSocketRequesterTest {
         .blockFirst();
 
     Assertions.assertThat(request.isDisposed()).isTrue();
+  }
+
+  @Test
+  public void testCorrectFrameOrder() {
+    MonoProcessor<Object> delayer = MonoProcessor.create();
+    BaseSubscriber<Payload> subscriber =
+        new BaseSubscriber<Payload>() {
+          @Override
+          protected void hookOnSubscribe(Subscription subscription) {}
+        };
+    rule.socket
+        .requestChannel(
+            Flux.concat(Flux.just(0).delayUntil(i -> delayer), Flux.range(1, 999))
+                .map(i -> DefaultPayload.create(i + "")))
+        .subscribe(subscriber);
+
+    subscriber.request(1);
+    subscriber.request(Long.MAX_VALUE);
+    delayer.onComplete();
+
+    Iterator<ByteBuf> iterator = rule.connection.getSent().iterator();
+
+    ByteBuf initialFrame = iterator.next();
+
+    Assertions.assertThat(FrameHeaderFlyweight.frameType(initialFrame)).isEqualTo(REQUEST_CHANNEL);
+    Assertions.assertThat(RequestChannelFrameFlyweight.initialRequestN(initialFrame)).isEqualTo(1);
+    Assertions.assertThat(
+            RequestChannelFrameFlyweight.data(initialFrame).toString(CharsetUtil.UTF_8))
+        .isEqualTo("0");
+
+    ByteBuf requestNFrame = iterator.next();
+
+    Assertions.assertThat(FrameHeaderFlyweight.frameType(requestNFrame)).isEqualTo(REQUEST_N);
+    Assertions.assertThat(RequestNFrameFlyweight.requestN(requestNFrame))
+        .isEqualTo(Integer.MAX_VALUE);
+
+    Assertions.assertThat(iterator.hasNext()).isFalse();
   }
 
   public int sendRequestResponse(Publisher<Payload> response) {
