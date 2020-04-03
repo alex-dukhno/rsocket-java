@@ -40,7 +40,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.assertj.core.api.Assertions;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.reactivestreams.Publisher;
@@ -186,7 +185,6 @@ public class RSocketRequesterTest {
   }
 
   @Test
-  @Ignore
   public void testChannelRequestCancellation() {
     MonoProcessor<Void> cancelled = MonoProcessor.create();
     Flux<Payload> request = Flux.<Payload>never().doOnCancel(cancelled::onComplete);
@@ -202,8 +200,7 @@ public class RSocketRequesterTest {
   public void testChannelRequestCancellation2() {
     MonoProcessor<Void> cancelled = MonoProcessor.create();
     Flux<Payload> request =
-        Flux.<Payload>just(EmptyPayload.INSTANCE, EmptyPayload.INSTANCE)
-            .doOnCancel(cancelled::onComplete);
+        Flux.<Payload>just(EmptyPayload.INSTANCE).repeat(259).doOnCancel(cancelled::onComplete);
     rule.socket.requestChannel(request).subscribe().dispose();
     Flux.first(
             cancelled,
