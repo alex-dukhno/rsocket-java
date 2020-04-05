@@ -461,6 +461,11 @@ class RSocketRequester implements RSocket {
       return Mono.error(err);
     }
 
+    if (!FragmentationUtils.isValid(this.mtu, payload)) {
+      payload.release();
+      return Mono.error(new IllegalArgumentException("Too big Payload size"));
+    }
+
     return UnicastMonoEmpty.newInstance(
         () -> {
           ByteBuf metadataPushFrame =
