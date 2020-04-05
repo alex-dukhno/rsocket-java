@@ -333,12 +333,13 @@ class RSocketRequester implements RSocket {
         (s, flux) -> {
           Payload payload = s.get();
           if (payload != null) {
-              if (!FragmentationUtils.isValid(mtu, payload)) {
-                  payload.release();
-                  final IllegalArgumentException t = new IllegalArgumentException("Too big Payload size");
-                  errorConsumer.accept(t);
-                  return Mono.error(t);
-              }
+            if (!FragmentationUtils.isValid(mtu, payload)) {
+              payload.release();
+              final IllegalArgumentException t =
+                  new IllegalArgumentException("Too big Payload size");
+              errorConsumer.accept(t);
+              return Mono.error(t);
+            }
             return handleChannel(payload, flux.skip(1));
           } else {
             return flux;
@@ -363,16 +364,17 @@ class RSocketRequester implements RSocket {
 
           @Override
           protected void hookOnNext(Payload payload) {
-              if (!FragmentationUtils.isValid(mtu, payload)) {
-                  payload.release();
-                  cancel();
-                  final IllegalArgumentException t = new IllegalArgumentException("Too big Payload size");
-                  errorConsumer.accept(t);
-                  // no need to send any errors.
-                  sendProcessor.onNext(CancelFrameFlyweight.encode(allocator, streamId));
-                  receiver.onError(t);
-                  return ;
-              }
+            if (!FragmentationUtils.isValid(mtu, payload)) {
+              payload.release();
+              cancel();
+              final IllegalArgumentException t =
+                  new IllegalArgumentException("Too big Payload size");
+              errorConsumer.accept(t);
+              // no need to send any errors.
+              sendProcessor.onNext(CancelFrameFlyweight.encode(allocator, streamId));
+              receiver.onError(t);
+              return;
+            }
             final ByteBuf frame =
                 PayloadFrameFlyweight.encode(allocator, streamId, false, false, true, payload);
 
