@@ -426,6 +426,7 @@ public class RSocketFactory {
                           payloadDecoder,
                           errorConsumer,
                           StreamIdSupplier.clientSupplier(),
+                          mtu,
                           keepAliveTickPeriod(),
                           keepAliveTimeout(),
                           keepAliveHandler,
